@@ -1,0 +1,17 @@
+[package]
+name = "powertest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1.0.64", features = ["backtrace"] }
+ctrlc = "3.2.2"
+serialport = "4.2.0"
+tracing = "0.1.36"
+tracing-subscriber = "0.3.15"
+
+
+[dependencies.ppk2]
+path = "../ppk2-rs/ppk2"

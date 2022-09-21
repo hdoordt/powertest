@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     let mut levels = [PinLevel::Either; 8];
     levels[0] = PinLevel::Low;
     let pins = LogicPortPins::with_levels(levels);
-    let (rx, kill) = ppk2.start_measuring_while_matches(pins, 100000)?;
+    let (rx, kill) = ppk2.start_measurement_matching(pins, 100000)?;
 
     let kill = Arc::new(Mutex::new(Some(kill)));
     let kill_in_handler = kill.clone();

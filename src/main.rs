@@ -1,16 +1,25 @@
 use std::{
+    path::PathBuf,
     sync::{mpsc::RecvTimeoutError, Arc, Mutex},
     time::Duration,
 };
 
 use anyhow::Result;
+use clap::Parser;
 use ppk2::{
     measurement::{Measurement, MeasurementMatch},
     types::{DevicePower, Level as PinLevel, LogicPortPins, MeasurementMode, SourceVoltage},
     Ppk2,
 };
-use tracing::{error, info, Level, trace};
+use tracing::{error, info, trace, Level};
 use tracing_subscriber::FmtSubscriber;
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg()]
+    elf: PathBuf,
+}
+
 /*
 Steps:
 1. Power on
@@ -26,9 +35,11 @@ Steps:
 Steps 3, 4, and 6 can be omitted if it's not possible to disconnect the debugger
 */
 
-const EXPECTED_TESTS: usize = 3;
-
 fn main() -> Result<()> {
+    let args = Args::parse();
+
+    let expected_test_count = read_test_count(args.elf)?;
+
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
@@ -63,7 +74,7 @@ fn main() -> Result<()> {
     // 6. Power on
     let ppk2 = loop {
         let rcv_res = rx.recv_timeout(Duration::from_millis(2000));
-        if report_count >= EXPECTED_TESTS {
+        if report_count >= expected_test_count {
             break kill.lock().unwrap().take().map(|k| k()).unwrap();
         }
         use MeasurementMatch::*;
@@ -105,4 +116,29 @@ fn main() -> Result<()> {
     }
     info!("Goodbye!");
     Ok(())
+}
+
+fn read_test_count(elf_file_path: PathBuf) -> Result<usize> {
+    use object::{Object, ObjectSection, ObjectSymbol};
+
+    let bin_data = std::fs::read(elf_file_path)?;
+    let elf = object::File::parse(&*bin_data)?;
+
+    let symbol = elf
+        .symbols()
+        .find(|s| s.name() == Ok("__DEFMT_TEST_COUNT"))
+        .expect("symbol __DEFMT_TEST_COUNT not found");
+
+    let section = elf.section_by_index(symbol.section().index().unwrap())?;
+    let data = section
+        .data_range(symbol.address(), symbol.size())?
+        .unwrap();
+    let count = match (elf.is_little_endian(), elf.is_64()) {
+        (true, false) => u32::from_le_bytes(data.try_into().unwrap()) as usize,
+        (false, false) => u32::from_be_bytes(data.try_into().unwrap()) as usize,
+        (true, true) => u64::from_le_bytes(data.try_into().unwrap()) as usize,
+        (false, true) => u64::from_be_bytes(data.try_into().unwrap()) as usize,
+    };
+
+    Ok(count)
 }

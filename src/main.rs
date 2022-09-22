@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Parser;
 use ppk2::{
     measurement::{Measurement, MeasurementMatch},
@@ -18,6 +18,9 @@ use tracing_subscriber::FmtSubscriber;
 struct Args {
     #[arg()]
     elf: PathBuf,
+
+    #[arg(short, long, help = "The number of tests the device will run")]
+    num_tests: Option<usize>,
 }
 
 /*
@@ -36,14 +39,17 @@ Steps 3, 4, and 6 can be omitted if it's not possible to disconnect the debugger
 */
 
 fn main() -> Result<()> {
-    let args = Args::parse();
-
-    let expected_test_count = read_test_count(args.elf)?;
-
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
+
+    let args = Args::parse();
+
+    let expected_test_count = match args.num_tests {
+        Some(n) => n,
+        None => read_test_count(args.elf)?,
+    };
 
     let ppk2_port = ppk2::try_find_ppk2_port()?;
     let mut ppk2 = Ppk2::new(ppk2_port, MeasurementMode::Source)?;
@@ -124,10 +130,10 @@ fn read_test_count(elf_file_path: PathBuf) -> Result<usize> {
     let bin_data = std::fs::read(elf_file_path)?;
     let elf = object::File::parse(&*bin_data)?;
 
-    let symbol = elf
-        .symbols()
-        .find(|s| s.name() == Ok("__DEFMT_TEST_COUNT"))
-        .expect("symbol __DEFMT_TEST_COUNT not found");
+    let symbol = match elf.symbols().find(|s| s.name() == Ok("__DEFMT_TEST_COUNT")) {
+        Some(s) => s,
+        None => bail!("symbol __DEFMT_TEST_COUNT not found"),
+    };
 
     let section = elf.section_by_index(symbol.section().index().unwrap())?;
     let data = section

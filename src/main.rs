@@ -1,5 +1,5 @@
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{mpsc::RecvTimeoutError, Arc, Mutex},
     time::Duration,
 };
@@ -11,7 +11,11 @@ use ppk2::{
     types::{DevicePower, Level as PinLevel, LogicPortPins, MeasurementMode, SourceVoltage},
     Ppk2,
 };
-use tracing::{error, info, trace, Level};
+use probe_rs::{
+    flashing::{DownloadOptions, Format},
+    Permissions, Probe, Session,
+};
+use tracing::{error, info, trace, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser, Debug)]
@@ -19,8 +23,11 @@ struct Args {
     #[arg()]
     elf: PathBuf,
 
-    #[arg(short, long, help = "The number of tests the device will run")]
+    #[arg(short, long, help = "The number of tests the device will run. If omitted, the ELF will be inspected to infer the number of tests")]
     num_tests: Option<usize>,
+
+    #[arg(short, long, help = "The chip to program")]
+    chip: String,
 }
 
 /*
@@ -48,7 +55,7 @@ fn main() -> Result<()> {
 
     let expected_test_count = match args.num_tests {
         Some(n) => n,
-        None => read_test_count(args.elf)?,
+        None => read_test_count(&args.elf)?,
     };
 
     let ppk2_port = ppk2::try_find_ppk2_port()?;
@@ -58,13 +65,24 @@ fn main() -> Result<()> {
     // 1. Power on
     ppk2.set_device_power(DevicePower::Enabled)?;
     // 2. Flash device firmware
+    info!("Attaching to probe for chip {}", args.chip);
+    let mut session = attach_probe(&args.chip)?;
+    info!("Start flashing");
+    let mut options = DownloadOptions::default();
+    options.verify = true;
+    options.do_chip_erase = true;
+    probe_rs::flashing::download_file_with_options(&mut session, &args.elf, Format::Elf, options)?;
+    info!("Done!");
+    let mut core = session.core(0)?;
+    core.reset_and_halt(Duration::from_secs(60))?;
+    
     // 3. Power off
     // 4. Disconnect debugger
     // 5. Start measuring, ignoring data if D0 has not been high yet, or if it is high
     let mut levels = [PinLevel::Either; 8];
     levels[0] = PinLevel::Low;
     let pins = LogicPortPins::with_levels(levels);
-    let (rx, kill) = ppk2.start_measurement_matching(pins, 100000)?;
+    let (rx, kill) = ppk2.start_measurement_matching(pins, 1000)?;
 
     let kill = Arc::new(Mutex::new(Some(kill)));
     let kill_in_handler = kill.clone();
@@ -73,10 +91,12 @@ fn main() -> Result<()> {
         ppk2.set_device_power(DevicePower::Disabled).unwrap();
         std::process::exit(0);
     })?;
+
     let mut preamble_detected = false;
     let mut sum = 0f32;
     let mut count = 0;
     let mut report_count = 0;
+    core.reset()?;
     // 6. Power on
     let ppk2 = loop {
         let rcv_res = rx.recv_timeout(Duration::from_millis(2000));
@@ -124,15 +144,15 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn read_test_count(elf_file_path: PathBuf) -> Result<usize> {
+fn read_test_count(elf_file_path: impl AsRef<Path>) -> Result<usize> {
     use object::{Object, ObjectSection, ObjectSymbol};
 
     let bin_data = std::fs::read(elf_file_path)?;
     let elf = object::File::parse(&*bin_data)?;
 
-    let symbol = match elf.symbols().find(|s| s.name() == Ok("__DEFMT_TEST_COUNT")) {
+    let symbol = match elf.symbols().find(|s| s.name() == Ok("DEFMT_TEST_COUNT")) {
         Some(s) => s,
-        None => bail!("symbol __DEFMT_TEST_COUNT not found"),
+        None => bail!("symbol DEFMT_TEST_COUNT not found"),
     };
 
     let section = elf.section_by_index(symbol.section().index().unwrap())?;
@@ -147,4 +167,26 @@ fn read_test_count(elf_file_path: PathBuf) -> Result<usize> {
     };
 
     Ok(count)
+}
+
+fn attach_probe(chip: &str) -> Result<Session> {
+    let mut probes = Probe::list_all().into_iter();
+    let session = loop {
+        let probe = match probes.next() {
+            Some(p) => p,
+            None => bail!("No probe found for chip {chip}"),
+        };
+        let probe = match probe.open() {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("Could not open probe: {e}");
+                continue;
+            }
+        };
+        match probe.attach(chip, Permissions::new().allow_erase_all()) {
+            Ok(s) => break s,
+            Err(_) => continue,
+        };
+    };
+    Ok(session)
 }

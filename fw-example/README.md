@@ -21,11 +21,13 @@ Make sure you've installed powertest:
 cargo install powertest
 ```
 
-Or, if you want to install a local version, you can run
+Or, if you want to install a local version, you can run:
 
 ```bash
 cargo install --path /path/to/powertest
 ```
+
+To run the test:
 
 ```bash
 cargo test --test power

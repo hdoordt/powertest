@@ -24,6 +24,10 @@ panic-probe = {version = "0.3.0", features = ["print-defmt"]}
 defmt-test = "0.3.0"
 
 [patch.crates-io]
+# We use an unreleased version of defmt-test-macros, as it contains the `before_each` and `after_each` attributes,
+# as well as a symbol representing the number of tests in the test artifact. See PRs:
+# - https://github.com/knurling-rs/defmt/pull/696
+# - https://github.com/knurling-rs/defmt/pull/698
 defmt-test-macros = {git = "https://github.com/knurling-rs/defmt.git", rev = "fd43e82" }
 
 # cargo build/run

@@ -518,9 +518,9 @@ dependencies = [
 
 [[package]]
 name = "ppk2"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bf2086f548fcabf787376795d9f8a4ea369caf71f0a4aff51c3c0cf58fe66ef"
+checksum = "be4eb3e320232f1f7d909e25668262b0b4512fc0e81e92881a91f47eea9a3e5f"
 dependencies = [
  "num_enum",
  "serialport",

@@ -1,6 +1,10 @@
 # Powertest example firmware
 Contains an example test that can be run on an nRF52840DK
 
+## Example
+
+The interesting stuff happens in [src/power.rs](https://github.com/hdoordt/powertest/blob/main/fw-example/tests/power.rs). You can use this example to set up your own tests.
+
 ## Pin connections
 
 If you just want to try out the tool:
@@ -12,7 +16,17 @@ If you just want to try out the tool:
 | D0                  | P0.03          |
 
 ## Run
-In one terminal window, start `powertest`. Then, in another terminal window, run
+Make sure you've installed powertest:
+```bash
+cargo install powertest
+```
+
+Or, if you want to install a local version, you can run
+
+```bash
+cargo install --path /path/to/powertest
+```
+
 ```bash
 cargo test --test power
 ```

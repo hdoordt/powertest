@@ -10,7 +10,7 @@ anyhow = { version = "1.0.64", features = ["backtrace"] }
 clap = { version = "4.0.0", features = ["derive"] }
 ctrlc = "3.2.2"
 object = "0.29.0"
-ppk2 = "0.1.0"
+ppk2 = "0.1.1"
 probe-rs = "0.13.0"
 serialport = "4.2.0"
 tracing = "0.1.36"

@@ -1,5 +1,5 @@
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
-runner = "powertest --chip nrf52840"
+runner = "powertest --chip nrf52840 --voltage 3300 --mode source --sps 10000"
 
 rustflags = [
   "-C", "linker=flip-link",

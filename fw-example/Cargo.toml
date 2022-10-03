@@ -24,7 +24,7 @@ panic-probe = {version = "0.3.0", features = ["print-defmt"]}
 defmt-test = "0.3.0"
 
 [patch.crates-io]
-defmt-test-macros = {git = "https://github.com/tweedegolf/defmt.git", rev = "d0e9ec1" }
+defmt-test-macros = {git = "https://github.com/knurling-rs/defmt.git", rev = "fd43e82" }
 
 # cargo build/run
 [profile.dev]

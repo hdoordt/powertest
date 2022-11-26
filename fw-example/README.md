@@ -3,7 +3,7 @@ Contains an example test that can be run on an nRF52840DK
 
 ## Example
 
-The interesting stuff happens in [src/power.rs](https://github.com/hdoordt/powertest/blob/main/fw-example/tests/power.rs). You can use this example to set up your own tests.
+The interesting stuff happens in [tests/power.rs](https://github.com/hdoordt/powertest/blob/main/fw-example/tests/power.rs). You can use this example to set up your own tests.
 
 ## Pin connections
 
